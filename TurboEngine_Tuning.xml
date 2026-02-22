@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<base>
+  <Current_Tuning>
+    <kInstantiator value="True" />
+    <!-- GLOBAL: Routing engine -->
+    <kCarSpeedMultiplier value="2.5" />
+    <kMinCarTravelDistance value="5.0" />
+    <kMinBoatTravelDistance value="5.0" />
+    <kTravellingEventInterval value="5.0" />
+    <!-- PER-SIM: Avoidance/obstruction -->
+    <kUseAdvancedAvoidance value="False" />
+    <kShouldHandleObstructions value="False" />
+    <kAvoidanceRangeScale value="0.5" />
+    <kAvoidanceSmoothing value="0.0" />
+    <!-- MAINTENANCE -->
+    <kMaintenanceIntervalMinutes value="30.0" />
+    <kEnableMaintenance value="True" />
+    <kForceGC value="True" />
+    <kEnableLog value="True" />
+  </Current_Tuning>
+</base>
