@@ -8,14 +8,21 @@ echo =============================================
 echo.
 
 :: =============================================================
-::  CONFIGURATION — edit these two paths if the defaults are wrong
+::  CONFIGURATION
 :: =============================================================
-:: Folder that contains BOTH ScriptCore.dll and SimIFace.dll.
-:: The Create a World Tool ships both files.
-set SIMS3_REFS=C:\MagiPacks\The Sims 3\Tools\Create a World Tool
+::  This mod needs the FULL game DLLs (ScriptCore.dll + SimIFace.dll).
+::  The Create-a-World Tool ships stripped copies that are missing
+::  RouteManager, AlarmHandle, World events, etc.
+::
+::  The script will auto-search common install locations.
+::  If it cannot find them, set this path manually to the folder
+::  that contains TS3.exe (or TS3W.exe) alongside the DLLs:
+::
+set SIMS3_GAME=C:\MagiPacks\The Sims 3
 :: =============================================================
 
 set CSC=
+set REFS=
 
 :: ─── FIND COMPILER ──────────────────────────────────────────
 if exist "C:\Windows\Microsoft.NET\Framework\v3.5\csc.exe" (
@@ -47,26 +54,70 @@ if not exist "TurboEngine.cs" (
 )
 echo [OK] Found TurboEngine.cs
 
-:: ─── CHECK REFERENCES ───────────────────────────────────────
-if not exist "%SIMS3_REFS%\ScriptCore.dll" (
-    echo [ERROR] ScriptCore.dll not found at:
-    echo   %SIMS3_REFS%\ScriptCore.dll
-    echo.
-    echo   FIX: Open this script in Notepad and change the SIMS3_REFS
-    echo        path at the top to the folder containing your DLLs.
-    goto :fail
-)
-echo [OK] Found ScriptCore.dll
+:: ─── FIND GAME DLLS ─────────────────────────────────────────
+:: Try common locations where the FULL DLLs live.
+:: The CAW Tool copies are stripped and will NOT work.
 
-if not exist "%SIMS3_REFS%\SimIFace.dll" (
-    echo [ERROR] SimIFace.dll not found at:
-    echo   %SIMS3_REFS%\SimIFace.dll
-    echo.
-    echo   FIX: Open this script in Notepad and change the SIMS3_REFS
-    echo        path at the top to the folder containing your DLLs.
-    goto :fail
+:: 1) Game\Bin under the configured root (standard EA layout)
+if exist "%SIMS3_GAME%\Game\Bin\ScriptCore.dll" if exist "%SIMS3_GAME%\Game\Bin\SimIFace.dll" (
+    set "REFS=%SIMS3_GAME%\Game\Bin"
+    goto :found_refs
 )
-echo [OK] Found SimIFace.dll
+
+:: 2) Bin directly under the root (some repacks)
+if exist "%SIMS3_GAME%\Bin\ScriptCore.dll" if exist "%SIMS3_GAME%\Bin\SimIFace.dll" (
+    set "REFS=%SIMS3_GAME%\Bin"
+    goto :found_refs
+)
+
+:: 3) Root itself (some portable/repack layouts)
+if exist "%SIMS3_GAME%\ScriptCore.dll" if exist "%SIMS3_GAME%\SimIFace.dll" (
+    set "REFS=%SIMS3_GAME%"
+    goto :found_refs
+)
+
+:: 4) Gameplay subfolder (some repacks)
+if exist "%SIMS3_GAME%\Gameplay\ScriptCore.dll" if exist "%SIMS3_GAME%\Gameplay\SimIFace.dll" (
+    set "REFS=%SIMS3_GAME%\Gameplay"
+    goto :found_refs
+)
+
+:: 5) Standard Program Files locations
+for %%P in (
+    "C:\Program Files\Electronic Arts\The Sims 3\Game\Bin"
+    "C:\Program Files (x86)\Electronic Arts\The Sims 3\Game\Bin"
+) do (
+    if exist "%%~P\ScriptCore.dll" if exist "%%~P\SimIFace.dll" (
+        set "REFS=%%~P"
+        goto :found_refs
+    )
+)
+
+:: Nothing found — tell the user exactly what to do
+echo [ERROR] Could not find the FULL game DLLs (ScriptCore.dll + SimIFace.dll).
+echo.
+echo   Searched under: %SIMS3_GAME%
+echo     - Game\Bin\
+echo     - Bin\
+echo     - Gameplay\
+echo     - (root)
+echo.
+echo   IMPORTANT: The Create-a-World Tool copies will NOT work.
+echo   They are stripped and missing RouteManager, AlarmHandle, etc.
+echo.
+echo   HOW TO FIX:
+echo     1. Find your Sims 3 game folder (it has TS3.exe or TS3W.exe)
+echo     2. Open this script in Notepad
+echo     3. Change the SIMS3_GAME line near the top to point there
+echo        Example: set SIMS3_GAME=C:\Games\The Sims 3
+echo.
+echo   HINT: Search your PC for ScriptCore.dll — pick the LARGEST
+echo   copy (usually 10+ MB). The CAW Tool copy is only ~1-2 MB.
+goto :fail
+
+:found_refs
+echo [OK] Found ScriptCore.dll in: %REFS%
+echo [OK] Found SimIFace.dll  in: %REFS%
 echo.
 
 :: ─── COMPILE ────────────────────────────────────────────────
@@ -75,20 +126,24 @@ if exist TurboEngine.dll del TurboEngine.dll
 
 echo [*] Compiling TurboEngine.cs...
 "%CSC%" /target:library /out:TurboEngine.dll /optimize+ /nologo ^
-    /reference:"%SIMS3_REFS%\ScriptCore.dll" ^
-    /reference:"%SIMS3_REFS%\SimIFace.dll" ^
+    /reference:"%REFS%\ScriptCore.dll" ^
+    /reference:"%REFS%\SimIFace.dll" ^
     TurboEngine.cs
 
 if not exist TurboEngine.dll (
     echo.
     echo [ERROR] Compilation failed! Check the errors above.
+    echo.
+    echo   If you see "does not contain a definition" errors, your DLLs
+    echo   are probably the stripped CAW Tool versions.
+    echo   You need the FULL DLLs from the game's own Bin folder.
+    echo   See the SIMS3_GAME setting at the top of this script.
     goto :fail
 )
 echo [OK] TurboEngine.dll compiled
 echo.
 
 :: ─── PACKAGE ────────────────────────────────────────────────
-:: Check for Python before attempting the package step
 where python >nul 2>&1
 if errorlevel 1 (
     echo [WARN] Python not found in PATH — skipping .package build.
