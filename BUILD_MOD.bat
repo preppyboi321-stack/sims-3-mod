@@ -6,7 +6,12 @@ echo   TurboEngine Mod Builder for Sims 3
 echo =============================================
 echo.
 
+:: Path to the Create a World Tool (for ScriptCore.dll)
 set SIMS3_TOOLS=C:\MagiPacks\The Sims 3\Tools\Create a World Tool
+
+:: Path to the game's own bin (for the FULL SimIFace.dll — CaW version is stripped)
+set SIMS3_BIN=C:\MagiPacks\The Sims 3\Game\Bin
+
 set CSC=
 
 :: Find csc.exe — try .NET Framework 3.5, then 4.0, then any available
@@ -39,12 +44,22 @@ if not exist "%SIMS3_TOOLS%\ScriptCore.dll" (
     exit /b 1
 )
 echo [OK] Found ScriptCore.dll
+
+if not exist "%SIMS3_BIN%\SimIFace.dll" (
+    echo [ERROR] SimIFace.dll not found at:
+    echo   %SIMS3_BIN%
+    echo.
+    echo   Edit this script and set SIMS3_BIN to your Sims 3 Game\Bin path.
+    echo   The CaW Tool version of SimIFace.dll is stripped and missing AlarmHandle.
+    pause
+    exit /b 1
+)
 echo [OK] Found SimIFace.dll
 echo.
 
 :: Compile
 echo [*] Compiling TurboEngine.cs...
-"%CSC%" /target:library /out:TurboEngine.dll /optimize+ /nologo /reference:"%SIMS3_TOOLS%\ScriptCore.dll" /reference:"%SIMS3_TOOLS%\SimIFace.dll" TurboEngine.cs
+"%CSC%" /target:library /out:TurboEngine.dll /optimize+ /nologo /reference:"%SIMS3_TOOLS%\ScriptCore.dll" /reference:"%SIMS3_BIN%\SimIFace.dll" TurboEngine.cs
 
 if not exist TurboEngine.dll (
     echo [ERROR] Compilation failed! Check errors above.
