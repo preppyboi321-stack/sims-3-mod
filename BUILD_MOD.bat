@@ -1,5 +1,6 @@
 @echo off
 title TurboEngine Mod Builder
+cd /d "%~dp0"
 echo =============================================
 echo   TurboEngine Mod Builder for Sims 3
 echo =============================================
