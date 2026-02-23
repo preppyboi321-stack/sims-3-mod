@@ -73,8 +73,6 @@ namespace TurboEngine
         [Tunable]
         internal static bool kEnableLog = true;
 
-        private static AlarmHandle sMaintenanceAlarm = AlarmHandle.kInvalidHandle;
-
         static TurboEngineInit()
         {
             World.sOnWorldLoadFinishedEventHandler += OnWorldLoadFinished;
@@ -99,8 +97,14 @@ namespace TurboEngine
                 int g = ApplyGlobalOptimizations();
                 int s = ApplyPerSimOptimizations();
 
-                if (kEnableMaintenance)
-                    StartMaintenance();
+                if (kForceGC)
+                {
+                    GC.Collect();
+                    GC.WaitForPendingFinalizers();
+                    GC.Collect();
+                }
+
+                try { Simulator.ClearReflectionCache(); } catch { }
 
                 Log("v1.1 loaded! Global: " + g + "/4 applied. Per-sim optimized: " + s + " objects.");
             }
@@ -112,7 +116,7 @@ namespace TurboEngine
 
         private static void OnWorldQuit(object sender, EventArgs e)
         {
-            StopMaintenance();
+            Log("World quit — TurboEngine unloaded.");
         }
 
         // ================================================================
@@ -211,62 +215,12 @@ namespace TurboEngine
         }
 
         // ================================================================
-        // MAINTENANCE — periodic re-apply + garbage collection
+        // MAINTENANCE NOTE:
+        // Periodic alarm-based maintenance (AlarmManager/AlarmHandle) was
+        // removed because those types are not present in the CAW-tool
+        // SimIFace.dll.  GC and cache cleanup now run at world load.
+        // Optimizations persist for the session; new sims spawned mid-
+        // game will be optimized on the next world load.
         // ================================================================
-
-        private static void StartMaintenance()
-        {
-            try
-            {
-                sMaintenanceAlarm = AlarmManager.Global.AddAlarmRepeating(
-                    kMaintenanceIntervalMinutes,
-                    TimeUnit.Minutes,
-                    OnMaintenanceTick,
-                    kMaintenanceIntervalMinutes,
-                    TimeUnit.Minutes,
-                    "TurboEngine_Maintenance",
-                    AlarmType.NeverPersisted,
-                    null
-                );
-                Log("Maintenance started (every " + kMaintenanceIntervalMinutes + " min)");
-            }
-            catch (Exception ex)
-            {
-                Log("Maintenance alarm failed: " + ex.Message);
-            }
-        }
-
-        private static void StopMaintenance()
-        {
-            if (sMaintenanceAlarm != AlarmHandle.kInvalidHandle)
-            {
-                try { AlarmManager.Global.RemoveAlarm(sMaintenanceAlarm); } catch { }
-                sMaintenanceAlarm = AlarmHandle.kInvalidHandle;
-            }
-        }
-
-        private static void OnMaintenanceTick()
-        {
-            try
-            {
-                // Re-apply globals (reset on lot transitions)
-                ApplyGlobalOptimizations();
-
-                // Re-apply per-sim (new sims may have spawned since last run)
-                ApplyPerSimOptimizations();
-
-                // Force GC to fight the notorious Sims 3 memory leak
-                if (kForceGC)
-                {
-                    GC.Collect();
-                    GC.WaitForPendingFinalizers();
-                    GC.Collect();
-                }
-
-                // Clear reflection cache to free managed memory
-                try { Simulator.ClearReflectionCache(); } catch { }
-            }
-            catch { }
-        }
     }
 }
